@@ -8,6 +8,12 @@
       <Video class="box4"></Video>
       <Inform class="box5"></Inform>
     </features>
+    <div class="openopr" v-for="item in openmenus" :key="item.id">
+      <button @click="openOpr(item.id)">打开第一路继电器</button>
+    </div>
+    <div class="closeopr" v-for="item in closemenus" :key="item.id">
+      <button @click="closeOpr(item.id)">打开第一路继电器</button>
+    </div>
     <div class="footer">
       <span>123{{ retMsg }}</span>
     </div>
@@ -23,57 +29,66 @@ import Inform from "./components/Inform.vue";
 import Curve from "./components/Curve.vue";
 
 import { useWebSocket } from "../hooks";
-import { register } from "../hooks/wbsockSend";
+import { register, damopr } from "../hooks/wbsockSend";
 
 import { ref, reactive, inject, onMounted, watch, onUnmounted } from "vue";
 import { webSocketStore } from "../stores/websocketMsg";
 import { AdminStore } from "../stores/AdminStore";
+import { EquipStore } from "../stores/EquipStore";
 
 const adminStore = AdminStore();
+const equipStore = EquipStore();
 
 const webStore = webSocketStore();
 const ws = useWebSocket(handleMessage);
 // let ws;
 let retMsg = ref({});
 
-// const firstRun = () => {
-//   return new Promise((res) => {
-//     ws = useWebSocket(handleMessage);
-//     // res();
-//   });
-// };
+//菜单
+let openmenus = [
+  { name: "打开第一路继电器", id: 1 },
+  { name: "打开第二路继电器", id: 2 },
+];
+let closemenus = [
+  { name: "关闭第一路继电器", id: 1 },
+  { name: "关闭第二路继电器", id: 2 },
+];
 
-// const secondRun = () => {
-//   let tempregister = register();
-//   tempregister.token = adminStore.token;
-//   const registMsg = JSON.stringify(tempregister);
-//   console.log("registMsg = ", registMsg, "ws.readyState = ", ws.readyState);
-//   if (typeof ws === "undefined") {
-//     console.log("websocket还没有连接，或者连接失败，情检测");
-//     return false;
-//   }
-//   if (ws.readyState == 3 || ws.readyState == 2 || ws.readyState == 0) {
-//     console.log("websocket已经关闭，或者连接失败，情检测");
-//     return false;
-//   }
-//   ws.send(registMsg);
-// };
+//发起开启请求
+const openOpr = (id) => {};
 
-// const task = () => {
-//   firstRun()
-//     .then(() => {
-//       secondRun();
-//     })
-//     .catch((e) => {
-//       console.log("发生错误：", e);
-//     });
-// };
+//发起关闭请求
+const closeOpr = (id) => {};
+
+// function doSendOpen(io) {
+//   let params = {
+//     opr: "open",
+//     unid: equipStore.currentUnid,
+//     io: io
+//   }
+
+//   let tempDamopr = damopr(params)
+//   tempDamopr.token = adminStore.token;
+//   const damoprMsg = JSON.stringify(tempDamopr);
+//   // --------------可抽出来-------------
+
+//   // console.log("damoprMsg = ", damoprMsg, "ws.readyState = ", ws.readyState);
+//   // if (typeof ws === "undefined") {
+//   //   console.log("websocket还没有连接，或者连接失败，情检测");
+//   //   return false;
+//   // }
+//   // if (ws.readyState == 3 || ws.readyState == 2 || ws.readyState == 0) {
+//   //   console.log("websocket已经关闭，或者连接失败，或者正在链接，情检测");
+//   //   return false;
+//   // }
+//   // ws.send(damoprMsg);
+
+//   sendToWebsocket(damoprMsg)
+
+// }
 
 onMounted(() => {
-  // sendRegister();
   startTimer();
-  // runOrder();
-  // task();
 });
 
 function handleMessage(e) {
@@ -95,20 +110,68 @@ const sendRegister = () => {
   let tempregister = register();
   tempregister.token = adminStore.token;
   const registMsg = JSON.stringify(tempregister);
-  console.log("registMsg = ", registMsg, "ws.readyState = ", ws.readyState);
+  // --------------可抽出来-------------
+
+  // console.log("registMsg = ", registMsg, "ws.readyState = ", ws.readyState);
+  // if (typeof ws === "undefined") {
+  //   console.log("websocket还没有连接，或者连接失败，情检测");
+  //   return false;
+  // }
+  // if (ws.readyState == 3 || ws.readyState == 2 || ws.readyState == 0) {
+  //   console.log("websocket已经关闭，或者连接失败，情检测");
+  //   return false;
+  // }
+  // ws.send(registMsg);
+
+  sendToWebsocket(registMsg);
+};
+
+// 发送websocket请求
+const sendToWebsocket = (Msg) => {
+  console.log("Msg = ", Msg, "ws.readyState = ", ws.readyState);
   if (typeof ws === "undefined") {
     console.log("websocket还没有连接，或者连接失败，情检测");
     return false;
   }
   if (ws.readyState == 3 || ws.readyState == 2 || ws.readyState == 0) {
-    console.log("websocket已经关闭，或者连接失败，情检测");
+    console.log("websocket已经关闭，或者连接失败，或者正在链接，情检测");
     return false;
   }
-  ws.send(registMsg);
+  ws.send(Msg);
 };
+
 onUnmounted(() => {
   clearTimeout(timerId);
 });
+
+// 判断是否连接上websocket
+// const prepare = () => {
+//   console.log("ws.readyState = ", ws.readyState);
+//   while (
+//     ws.readyState == 0 ||
+//     ws.readyState == 2 ||
+//     ws.readyState == 3 ||
+//     ws.readyState == "undefine"
+//   ) {
+//     console.log("进入循环后ws.readyState = ", ws.readyState);
+//     if (ws.readyState == 1) {
+//       break;
+//     }
+//   }
+//   let tempregister = register();
+//   tempregister.token = adminStore.token;
+//   const registMsg = JSON.stringify(tempregister);
+//   console.log("registMsg = ", registMsg, "ws.readyState = ", ws.readyState);
+//   if (typeof ws === "undefined") {
+//     console.log("websocket还没有连接，或者连接失败，情检测");
+//     return false;
+//   }
+//   if (ws.readyState == 3 || ws.readyState == 2 || ws.readyState == 0) {
+//     console.log("websocket已经关闭，或者连接失败，情检测");
+//     return false;
+//   }
+//   ws.send(registMsg);
+// };
 </script>
 
 <style>
