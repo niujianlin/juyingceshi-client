@@ -61,9 +61,9 @@ const login = async () => {
   );
   if (result.data.code == 200) {
     console.log("result = ", result);
-    adminStore.userName = admin.userName;
+    adminStore.pushUserName(admin.userName);
     // adminStore.userid = result.data.data.user.id;
-    adminStore.token = result.data.data.accesstoken;
+    adminStore.pushToken(result.data.data.accesstoken);
 
     router.push("/home");
     message.info("登录成功");

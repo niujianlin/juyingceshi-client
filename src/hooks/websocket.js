@@ -25,10 +25,15 @@ function useWebSocket (handleMessage) {
 
     function handleClose(e) {
         console.log("webSocket close", e)
+        ws.close()
+        console.log("-------准备重启websocket---------")
+        init()
     }
 
     function handleError(e) {
         console.log("webSocket error", e)
+        console.log("---------websocket出现错误，准备重连websocket---------")
+        init()
     }
 
 

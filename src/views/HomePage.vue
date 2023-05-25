@@ -9,10 +9,10 @@
       <Inform class="box5"></Inform>
     </features>
     <div class="openopr" v-for="item in openmenus" :key="item.io">
-      <button @click="openOpr(item.io)">打开第一路继电器</button>
+      <button @click="openOpr(item.io)">打开第{{ item.io }}路继电器</button>
     </div>
     <div class="closeopr" v-for="item in closemenus" :key="item.io">
-      <button @click="closeOpr(item.io)">打开第一路继电器</button>
+      <button @click="closeOpr(item.io)">打开第{{ item.io }}路继电器</button>
     </div>
     <div class="footer">
       <span>123{{ retMsg }}</span>
@@ -28,13 +28,17 @@ import Video from "./components/Video.vue";
 import Inform from "./components/Inform.vue";
 import Curve from "./components/Curve.vue";
 
+import { ref, reactive, inject, onMounted, watch, onUnmounted } from "vue";
+import { useRouter, useRoute } from "vue-router";
+
 import { useWebSocket } from "../hooks";
 import { register, damopr } from "../hooks/wbsockSend";
 
-import { ref, reactive, inject, onMounted, watch, onUnmounted } from "vue";
 import { webSocketStore } from "../stores/websocketMsg";
 import { AdminStore } from "../stores/AdminStore";
 import { EquipStore } from "../stores/EquipStore";
+
+const router = useRouter();
 
 const adminStore = AdminStore();
 const equipStore = EquipStore();
@@ -73,7 +77,7 @@ const openOpr = (io) => {
 const closeOpr = (io) => {
   let params = {
     opr: "close",
-    unid: equipStore.currentUnid,
+    unid: equipStore.currentUnid[0],
     io: io,
   };
   let tempdamopr = damopr(params);
@@ -114,6 +118,7 @@ onMounted(() => {
   startTimer();
 });
 
+// 接收到消息要打印pinia查看是否有误
 function handleMessage(e) {
   console.log("handleMessage:", e.data);
   let returnmsg = JSON.parse(e.data);
@@ -129,6 +134,7 @@ function handleMessage(e) {
     retMsg.value = e.data;
     console.log("pinia里的webStore数据：", webStore);
     console.log("pinia里的equipStore数据：", equipStore);
+    console.log("pinia里的adminStore数据：", adminStore);
   } catch (err) {
     console.log("错误是：", err);
   }
@@ -137,6 +143,15 @@ function handleMessage(e) {
 let timerId;
 const startTimer = () => {
   timerId = setTimeout(() => {
+    // if(ws.readyState==0 || ws.readyState>1){
+    //   try{
+    //     console.log("断线需要重连")
+    //     // 看看会不会影响到pinia里的数据
+    //     console.log("看看会不会影响到pinia里的数据: adminStore.token=",adminStore.token)
+    //   }catch(e){
+    //     console.log("websocket断线重连出现了问题")
+    //   }
+    // }
     sendRegister();
   }, 1000);
 };
