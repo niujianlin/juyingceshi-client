@@ -8,11 +8,11 @@
       <Video class="box4"></Video>
       <Inform class="box5"></Inform>
     </features>
-    <div class="openopr" v-for="item in openmenus" :key="item.id">
-      <button @click="openOpr(item.id)">打开第一路继电器</button>
+    <div class="openopr" v-for="item in openmenus" :key="item.io">
+      <button @click="openOpr(item.io)">打开第一路继电器</button>
     </div>
-    <div class="closeopr" v-for="item in closemenus" :key="item.id">
-      <button @click="closeOpr(item.id)">打开第一路继电器</button>
+    <div class="closeopr" v-for="item in closemenus" :key="item.io">
+      <button @click="closeOpr(item.io)">打开第一路继电器</button>
     </div>
     <div class="footer">
       <span>123{{ retMsg }}</span>
@@ -46,19 +46,42 @@ let retMsg = ref({});
 
 //菜单
 let openmenus = [
-  { name: "打开第一路继电器", id: 1 },
-  { name: "打开第二路继电器", id: 2 },
+  { name: "打开第一路继电器", io: 1 },
+  { name: "打开第二路继电器", io: 2 },
 ];
 let closemenus = [
-  { name: "关闭第一路继电器", id: 1 },
-  { name: "关闭第二路继电器", id: 2 },
+  { name: "关闭第一路继电器", io: 1 },
+  { name: "关闭第二路继电器", io: 2 },
 ];
 
-//发起开启请求
-const openOpr = (id) => {};
+//开启继电器请求
+const openOpr = (io) => {
+  let params = {
+    opr: "open",
+    unid: equipStore.currentUnid[0],
+    io: io,
+  };
+  let tempdamopr = damopr(JSON.parse(JSON.stringify(params)));
+  tempdamopr.token = adminStore.token;
+  const damoprMsg = JSON.stringify(tempdamopr);
+  console.log("!!!!!开启请求了吗？");
 
-//发起关闭请求
-const closeOpr = (id) => {};
+  sendToWebsocket(damoprMsg);
+};
+
+//关闭继电器请求
+const closeOpr = (io) => {
+  let params = {
+    opr: "close",
+    unid: equipStore.currentUnid,
+    io: io,
+  };
+  let tempdamopr = damopr(params);
+  tempdamopr.token = adminStore.token;
+  const damoprMsg = JSON.stringify(tempdamopr);
+
+  sendToWebsocket(damoprMsg);
+};
 
 // function doSendOpen(io) {
 //   let params = {
@@ -93,8 +116,22 @@ onMounted(() => {
 
 function handleMessage(e) {
   console.log("handleMessage:", e.data);
-  retMsg.value = e.data;
-  console.log("pinia里的数据：", webStore);
+  let returnmsg = JSON.parse(e.data);
+
+  console.log("e.data.infotype：", returnmsg.infotype);
+  console.log("JSON.parse( e.data ):", returnmsg);
+
+  try {
+    // 将当前设备存到pinia
+    if (returnmsg.infotype === "EquipInfoNow") {
+      equipStore.updateCurrentid(returnmsg.sn);
+    }
+    retMsg.value = e.data;
+    console.log("pinia里的webStore数据：", webStore);
+    console.log("pinia里的equipStore数据：", equipStore);
+  } catch (err) {
+    console.log("错误是：", err);
+  }
 }
 
 let timerId;
@@ -104,8 +141,7 @@ const startTimer = () => {
   }, 1000);
 };
 
-// 启动websocket
-
+// 注册websocket用户
 const sendRegister = () => {
   let tempregister = register();
   tempregister.token = adminStore.token;

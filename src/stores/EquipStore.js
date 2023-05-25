@@ -4,12 +4,17 @@ export const EquipStore = defineStore("equip", {
 
     state: () => {
         return {
-            currentUnid: ""
+            // 是否为一个，或者是数组？
+            currentUnid: []
         }
     },
     actions: {
-        getCurrentUnid(unid) {
-            this.currentUnid = unid
+        // getCurrentUnid(unid) {
+        //     this.currentUnid.push( unid)
+        // },
+        updateCurrentid(unid){
+            this.currentUnid = []
+            this.currentUnid.push(unid)
         }
     },
     getters: {}
