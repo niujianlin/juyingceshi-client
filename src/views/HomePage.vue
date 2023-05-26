@@ -31,12 +31,13 @@ import Curve from "./components/Curve.vue";
 import { ref, reactive, inject, onMounted, watch, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 
-import { useWebSocket } from "../hooks";
+// import { useWebSocket } from "../hooks";
 import { register, damopr } from "../hooks/wbsockSend";
 
 import { webSocketStore } from "../stores/websocketMsg";
 import { AdminStore } from "../stores/AdminStore";
 import { EquipStore } from "../stores/EquipStore";
+import { ws_ADDRESS } from "../configs";
 
 const router = useRouter();
 
@@ -44,9 +45,57 @@ const adminStore = AdminStore();
 const equipStore = EquipStore();
 
 const webStore = webSocketStore();
-const ws = useWebSocket(handleMessage);
-// let ws;
+// let ws = useWebSocket(handleMessage);
+let ws;
+
 let retMsg = ref({});
+
+// --------------- websocket服务-------------------
+useWebSocket(handleMessage);
+
+function useWebSocket(handleMessage) {
+  ws = new WebSocket(ws_ADDRESS);
+
+  const init = () => {
+    bindEvent();
+  };
+
+  function bindEvent() {
+    ws.addEventListener("open", handleOpen, false);
+    ws.addEventListener("close", handleClose, false);
+    ws.addEventListener("error", handleError, false);
+    ws.addEventListener("message", handleMessage, false);
+  }
+
+  function handleOpen(e) {
+    console.log("---------------打开websocket连接了--------------");
+    console.log("webSocket open", e);
+    webStore.addMsg(e);
+    console.log("webSocketStore存入pinia", webStore);
+  }
+
+  function handleClose(e) {
+    console.log("webSocket close", e);
+    console.log("---------------正在关闭--------------");
+    console.log("---------------正在重启--------------");
+    returnWebsocket();
+  }
+
+  function handleError(e) {
+    console.log("webSocket error", e);
+    chongreturnWebsocketqifuwu();
+  }
+
+  init();
+}
+
+// 重启websocket服务
+function returnWebsocket() {
+  useWebSocket(handleMessage);
+  startTimer();
+}
+
+// ----------------------------------------------
 
 //菜单
 let openmenus = [
@@ -118,7 +167,18 @@ onMounted(() => {
   startTimer();
 });
 
-// 接收到消息要打印pinia查看是否有误
+// function secStart() {
+//   ws = useWebSocket(handleMessage);
+
+//   let secTimer = setTimeout(() => {
+//     console.log("还有没有ws：", ws);
+//     if (ws.readyState === 3) {
+//       sendRegister();
+//     }
+//   }, 2000);
+// }
+
+// 接收到消息、打印pinia、在这处理数据
 function handleMessage(e) {
   console.log("handleMessage:", e.data);
   let returnmsg = JSON.parse(e.data);
@@ -138,6 +198,11 @@ function handleMessage(e) {
   } catch (err) {
     console.log("错误是：", err);
   }
+  // 测试断开连接
+  if (returnmsg.infotype === "EquipInfoNow") {
+    ws.close();
+  }
+  // secStart();
 }
 
 let timerId;
@@ -156,7 +221,7 @@ const startTimer = () => {
   }, 1000);
 };
 
-// 注册websocket用户
+// 注册websocket用户（登录后立即执行）
 const sendRegister = () => {
   let tempregister = register();
   tempregister.token = adminStore.token;
@@ -185,7 +250,10 @@ const sendToWebsocket = (Msg) => {
     return false;
   }
   if (ws.readyState == 3 || ws.readyState == 2 || ws.readyState == 0) {
-    console.log("websocket已经关闭，或者连接失败，或者正在链接，情检测");
+    console.log(
+      "websocket已经关闭，或者连接失败，或者正在链接，情检测，ws.readyState = ",
+      ws.readyState
+    );
     return false;
   }
   ws.send(Msg);
@@ -193,6 +261,7 @@ const sendToWebsocket = (Msg) => {
 
 onUnmounted(() => {
   clearTimeout(timerId);
+  // clearTimeout(secTimer);
 });
 
 // 判断是否连接上websocket

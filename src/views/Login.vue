@@ -66,6 +66,9 @@ const login = async () => {
     adminStore.pushToken(result.data.data.accesstoken);
 
     router.push("/home");
+
+    // 这里连接websocket怎么样
+
     message.info("登录成功");
   } else {
     console.log("result:", result);
