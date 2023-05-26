@@ -169,6 +169,112 @@ onMounted(() => {
 
 // ------------定时处理任务-----------------
 
+// Pinia里没信息
+let deflaultAllEquipInfo = {
+  infotype: "初始化信息类型",
+  info: [
+    {
+      ID: "default",
+      Addr: "default",
+      SN: "default",
+      regdi: ["default"],
+      regdo: ["default"],
+      regai: ["default"],
+      AITime: "default",
+      DOTime: "default",
+      DITime: "default",
+      AOTime: "default",
+      ip: "default",
+      mbInfo: "default",
+      teamsn: "default",
+      ainum: "default",
+      aonum: "default",
+      dinum: "default",
+      donum: "default",
+      aimode: "default",
+      IsInverse: "default",
+      equiptype: "default",
+      IsTiming: "default",
+      IsOnLine: "default",
+      SOC: "default",
+      IsAIValueChg: "default",
+    },
+  ],
+};
+
+//1、获取用户所有设备的定时任务
+let getAllEquipsCount = 0; // 收到几次请求
+let isAllEquipsUseDefault = 0; // 发送默认数据次数
+
+// 定时器方法，开启定时
+let AllEquipsTimer = setInterval(storeDefaultOrLastone, 10000);
+
+// 事件
+function storeDefaultOrLastone() {
+  if (getAllEquipsCount == 0) {
+    // 从开始就没接收到过正常数据
+    if (isAllEquipsUseDefault < 3) {
+      // 第一次超时，需要发送默认数据给pinia
+      console.log("---第一次超时，getAllEquipsCount = ", getAllEquipsCount);
+      equipStore.updateAllEquipState(deflaultAllEquipInfo);
+      console.log("---第一次超时equipStore=", equipStore.allEquipStatemMsg);
+      isAllEquipsUseDefault++;
+    } else {
+      // 没正常应答且3次超时，销毁定时器,不再定时
+      console.log("---4次超时了，getAllEquipsCount = ", getAllEquipsCount);
+      equipStore.updateAllEquipStatemMsg(
+        "从开始就未收到消息，连续四次超时了，数据不再变化"
+      );
+      console.log("---4次超时equipStore=", equipStore.allEquipStatemMsg);
+      console.log("消除定时了-------------------");
+      clearInterval(AllEquipsTimer);
+    }
+  } else {
+    // 有正常数据后又出现了收不到的情况
+    if (isAllEquipsUseDefault < 3) {
+      // 发送上次的数据给pinia，相当于pinia不用更改
+      isAllEquipsUseDefault++;
+
+      console.log(
+        "---不是第一次有效请求，超时一次equipStore=",
+        equipStore.allEquipStatemMsg,
+        "，isAllEquipsUseDefault = ",
+        isAllEquipsUseDefault
+      );
+    } else {
+      //发送默认数据超过三次(store里存在上次的正常数据)，终止计时器
+      equipStore.updateAllEquipStatemMsg(
+        "发送默认数据（以前的数据）超过四次，设备状态有问题"
+      );
+      console.log(
+        "---不是第一次有效请求，超时四次，equipStore=",
+        equipStore.allEquipStatemMsg
+      );
+      console.log("消除定时了-------------------");
+      clearInterval(AllEquipsTimer);
+    }
+  }
+}
+
+// 重启定时器方法
+function resetTimer() {
+  // 如果收到请求的值变化，则清除计时器，并重启计时器
+  console.log("重启定时了-------------------");
+  clearInterval(AllEquipsTimer);
+  AllEquipsTimer = setInterval(storeDefaultOrLastone, 10000);
+}
+
+// // 监听getAllEquipsCount（收到请求的数据变化）
+// watch([getAllEquipsCount], (newval, preval) => {
+//   console.log(
+//     "监听getAllEquipsCount访问次数的变化  newval = ",
+//     newval,
+//     "  preval",
+//     preval
+//   );
+//   resetTimer();
+// });
+
 // ------------定时处理任务-----------------
 
 // ---------------接收到websocket传来的消息-------------------
@@ -184,6 +290,23 @@ function handleMessage(e) {
     // 将当前设备存到pinia
     if (returnmsg.infotype === "EquipInfoNow") {
       equipStore.updateCurrentid(returnmsg.sn);
+    } else if (returnmsg.infotype === "damreadall") {
+      // 先做错误判断，后存store
+      // 一会写...
+      equipStore.updateAllEquipState(returnmsg);
+      console.log("收到获取用户所有设备的响应");
+      getAllEquipsCount++; //获取到数据的次数
+
+      //更新msg状态，方便调试
+      // isAllEquipsUseDefault代表存pinia数据是不是过期的，isAllEquipsUseDefault=0说明间隔器到期前存的是新数据！！！
+      if (isAllEquipsUseDefault > 0) {
+        // 说明pinia存的过期数据，此时触发了响应，所以msg要更新成正常
+        equipStore.updateAllEquipStatemMsg("触发了响应，正常");
+      }
+
+      isAllEquipsUseDefault = 0; // 开始发送了，因此置为0
+
+      resetTimer();
     }
     // else if(returnmsg.infotype === "damreadall"){
     //   // 做错误处理：1、初始化关键的信息2、获取设备个数.length>=0(等于零说明用户没设备或是删了)
@@ -242,10 +365,10 @@ function handleMessage(e) {
     console.log("错误是：", err);
   }
 
-  // 测试断开连接
-  if (returnmsg.infotype === "EquipInfoNow") {
-    ws.close();
-  }
+  // // 测试断开连接
+  // if (returnmsg.infotype === "EquipInfoNow") {
+  //   ws.close();
+  // }
 }
 // ---------------接收到websocket传来的消息-------------------
 
@@ -286,8 +409,8 @@ const sendToWebsocket = (Msg) => {
 //--------------------所有请求的发送（判断websocket状态没问题后发送）---------------------
 
 onUnmounted(() => {
-  clearTimeout(timerId);
-  // clearTimeout(secTimer);
+  clearInterval(timerId);
+  // clearInterval(secTimer);
 });
 </script>
 

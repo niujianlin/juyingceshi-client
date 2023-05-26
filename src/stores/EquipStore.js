@@ -8,7 +8,7 @@ export const EquipStore = defineStore("equip", {
             currentUnid: [],
             // 所有设备状态
             allEquipState: [],
-            allEquipStatemMsg: "正常"
+            allEquipStatemMsg: ["没有请求（默认）"]
         }
     },
     actions: {
@@ -23,6 +23,9 @@ export const EquipStore = defineStore("equip", {
             this.allEquipState = []
             // 错误处理，万一接收到的数据有问题（放在前面处理也行）
             this.allEquipState = allEquipState
+        },
+        updateAllEquipStatemMsg(info) {
+            this.allEquipStatemMsg.push(info)
         }
     },
     getters: {}
