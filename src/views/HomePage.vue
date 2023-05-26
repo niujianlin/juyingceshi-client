@@ -169,6 +169,12 @@ onMounted(() => {
 
 // ------------定时处理任务-----------------
 
+// 防止过快的信息过来
+let currentProcessTime, lastProcessTime;
+let timeInterval = undefined;
+
+// 处理消息迟迟不来
+
 // Pinia里没信息
 let deflaultAllEquipInfo = {
   infotype: "初始化信息类型",
@@ -280,95 +286,118 @@ function resetTimer() {
 // ---------------接收到websocket传来的消息-------------------
 // 接收到消息、打印pinia、在这处理数据
 function handleMessage(e) {
-  console.log("handleMessage:", e.data);
-  let returnmsg = JSON.parse(e.data);
+  currentProcessTime = Date.now();
 
-  console.log("e.data.infotype：", returnmsg.infotype);
-  console.log("JSON.parse( e.data ):", returnmsg);
-
-  try {
-    // 将当前设备存到pinia
-    if (returnmsg.infotype === "EquipInfoNow") {
-      equipStore.updateCurrentid(returnmsg.sn);
-    } else if (returnmsg.infotype === "damreadall") {
-      // 先做错误判断，后存store
-      // 一会写...
-      equipStore.updateAllEquipState(returnmsg);
-      console.log("收到获取用户所有设备的响应");
-      getAllEquipsCount++; //获取到数据的次数
-
-      //更新msg状态，方便调试
-      // isAllEquipsUseDefault代表存pinia数据是不是过期的，isAllEquipsUseDefault=0说明间隔器到期前存的是新数据！！！
-      if (isAllEquipsUseDefault > 0) {
-        // 说明pinia存的过期数据，此时触发了响应，所以msg要更新成正常
-        equipStore.updateAllEquipStatemMsg("触发了响应，正常");
-      }
-
-      isAllEquipsUseDefault = 0; // 开始发送了，因此置为0
-
-      resetTimer();
-    }
-    // else if(returnmsg.infotype === "damreadall"){
-    //   // 做错误处理：1、初始化关键的信息2、获取设备个数.length>=0(等于零说明用户没设备或是删了)
-    //   console.log("获取的所有设备有几个，个数=", returnmsg.info.length)
-
-    //   // 1、初始化关键信息可以使用上一次传过来保存到pinia的信息（以备当前收到的数据有问题）
-    //   if(equipStore.allEquipState.length == 0){
-    //     // Pinia里没信息
-    //     let deflaultAllEquipInfo = {
-    //       infotype: "初始化信息类型",
-    //       info: [{
-    //         ID: "default",
-    //         Addr:"default",
-    //         SN:"default",
-    //         regdi:["default"],
-    //         regdo:["default"],
-    //         regai:["default"],
-    //         AITime:"default",
-    //         DOTime:"default",
-    //         DITime:"default",
-    //         AOTime:"default",
-    //         ip: "default",
-    //         mbInfo:"default",
-    //         teamsn:"default",
-    //         ainum: "default",
-    //         aonum:"default",
-    //         dinum:"default",
-    //         donum:"default",
-    //         aimode:"default",
-    //         IsInverse:"default",
-    //         equiptype:"default",
-    //         IsTiming:"default",
-    //         IsOnLine:"default",
-    //         SOC:"default",
-    //         IsAIValueChg:"default"
-    //       }]
-    //     }
-    //     // 是否一直没信息判断依据变量
-    //     let isUseDefault = 1
-    //     equipStore.updateAllEquipState(deflaultAllEquipInfo)
-
-    //   }
-    //   // 2、一直收到有问题的数据或者长时间收不到数据，需要报告给pinia
-    //   let getTimer = setInterval(() => {
-
-    //   }, 10);
-    //   // 3、信息有效的话，发送给pinia
-
-    // }
-
-    retMsg.value = e.data;
-    console.log("pinia里的webStore数据：", webStore);
-    console.log("pinia里的equipStore数据：", equipStore);
-    console.log("pinia里的adminStore数据：", adminStore);
-  } catch (err) {
-    console.log("错误是：", err);
+  if (timeInterval == undefined) {
+    // timeInterval初始化为currentProcessTime，处理第一次的结果
+    timeInterval = currentProcessTime;
+  } else {
+    timeInterval = currentProcessTime - lastProcessTime;
   }
 
-  // // 测试断开连接
-  // if (returnmsg.infotype === "EquipInfoNow") {
-  //   ws.close();
-  // }
+  console.log(
+    "两次消息接收的间隔timeInterval =",
+    timeInterval,
+    "  currentProcessTime",
+    currentProcessTime,
+    "  lastProcessTime",
+    lastProcessTime
+  );
+
+  if (timeInterval > 3000) {
+    // 限制一秒处理一次
+    console.log("handleMessage:", e.data);
+    let returnmsg = JSON.parse(e.data);
+
+    console.log("e.data.infotype：", returnmsg.infotype);
+    console.log("JSON.parse( e.data ):", returnmsg);
+
+    try {
+      // 将当前设备存到pinia
+      if (returnmsg.infotype === "EquipInfoNow") {
+        equipStore.updateCurrentid(returnmsg.sn);
+      } else if (returnmsg.infotype === "damreadall") {
+        // 先做错误判断，后存store
+        // 一会写...
+        equipStore.updateAllEquipState(returnmsg);
+        console.log("收到获取用户所有设备的响应");
+        getAllEquipsCount++; //获取到数据的次数
+
+        //更新msg状态，方便调试
+        // isAllEquipsUseDefault代表存pinia数据是不是过期的，isAllEquipsUseDefault=0说明间隔器到期前存的是新数据！！！
+        if (isAllEquipsUseDefault > 0) {
+          // 说明pinia存的过期数据，此时触发了响应，所以msg要更新成正常
+          equipStore.updateAllEquipStatemMsg("触发了响应，正常");
+        }
+
+        isAllEquipsUseDefault = 0; // 开始发送了，因此置为0
+
+        resetTimer();
+      }
+      // else if(returnmsg.infotype === "damreadall"){
+      //   // 做错误处理：1、初始化关键的信息2、获取设备个数.length>=0(等于零说明用户没设备或是删了)
+      //   console.log("获取的所有设备有几个，个数=", returnmsg.info.length)
+
+      //   // 1、初始化关键信息可以使用上一次传过来保存到pinia的信息（以备当前收到的数据有问题）
+      //   if(equipStore.allEquipState.length == 0){
+      //     // Pinia里没信息
+      //     let deflaultAllEquipInfo = {
+      //       infotype: "初始化信息类型",
+      //       info: [{
+      //         ID: "default",
+      //         Addr:"default",
+      //         SN:"default",
+      //         regdi:["default"],
+      //         regdo:["default"],
+      //         regai:["default"],
+      //         AITime:"default",
+      //         DOTime:"default",
+      //         DITime:"default",
+      //         AOTime:"default",
+      //         ip: "default",
+      //         mbInfo:"default",
+      //         teamsn:"default",
+      //         ainum: "default",
+      //         aonum:"default",
+      //         dinum:"default",
+      //         donum:"default",
+      //         aimode:"default",
+      //         IsInverse:"default",
+      //         equiptype:"default",
+      //         IsTiming:"default",
+      //         IsOnLine:"default",
+      //         SOC:"default",
+      //         IsAIValueChg:"default"
+      //       }]
+      //     }
+      //     // 是否一直没信息判断依据变量
+      //     let isUseDefault = 1
+      //     equipStore.updateAllEquipState(deflaultAllEquipInfo)
+
+      //   }
+      //   // 2、一直收到有问题的数据或者长时间收不到数据，需要报告给pinia
+      //   let getTimer = setInterval(() => {
+
+      //   }, 10);
+      //   // 3、信息有效的话，发送给pinia
+
+      // }
+
+      retMsg.value = e.data;
+      console.log("pinia里的webStore数据：", webStore);
+      console.log("pinia里的equipStore数据：", equipStore);
+      console.log("pinia里的adminStore数据：", adminStore);
+    } catch (err) {
+      console.log("错误是：", err);
+    }
+
+    // // 测试断开连接
+    // if (returnmsg.infotype === "EquipInfoNow") {
+    //   ws.close();
+    // }
+  }
+
+  lastProcessTime = currentProcessTime;
 }
 // ---------------接收到websocket传来的消息-------------------
 
@@ -411,6 +440,8 @@ const sendToWebsocket = (Msg) => {
 onUnmounted(() => {
   clearInterval(timerId);
   // clearInterval(secTimer);
+  clearInterval(AllEquipsTimer);
+  clearInterval(frequecyTimer);
 });
 </script>
 
