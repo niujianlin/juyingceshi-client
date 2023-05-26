@@ -14,6 +14,9 @@
     <div class="closeopr" v-for="item in closemenus" :key="item.io">
       <button @click="closeOpr(item.io)">打开第{{ item.io }}路继电器</button>
     </div>
+    <div>
+      <button @click="readAllState">获取用户所有设备信息</button>
+    </div>
     <div class="footer">
       <span>123{{ retMsg }}</span>
     </div>
@@ -32,7 +35,9 @@ import { ref, reactive, inject, onMounted, watch, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 
 // import { useWebSocket } from "../hooks";
-import { register, damopr } from "../hooks/wbsockSend";
+
+// 封装发送消息
+import { register, damopr, damreadall } from "../hooks/wbsockSend";
 
 import { webSocketStore } from "../stores/websocketMsg";
 import { AdminStore } from "../stores/AdminStore";
@@ -46,7 +51,8 @@ const equipStore = EquipStore();
 
 const webStore = webSocketStore();
 // let ws = useWebSocket(handleMessage);
-let ws;
+let ws; // websocket实例
+let timerId; // 定时器
 
 let retMsg = ref({});
 
@@ -107,6 +113,7 @@ let closemenus = [
   { name: "关闭第二路继电器", io: 2 },
 ];
 
+// -------------------继电器操作--------------------
 //开启继电器请求
 const openOpr = (io) => {
   let params = {
@@ -117,7 +124,8 @@ const openOpr = (io) => {
   let tempdamopr = damopr(JSON.parse(JSON.stringify(params)));
   tempdamopr.token = adminStore.token;
   const damoprMsg = JSON.stringify(tempdamopr);
-  console.log("!!!!!开启请求了吗？");
+  console.log("准备完数据，开始发送");
+  // console.log("!!!!!开启请求了吗？");
 
   sendToWebsocket(damoprMsg);
 };
@@ -135,49 +143,35 @@ const closeOpr = (io) => {
 
   sendToWebsocket(damoprMsg);
 };
+// -------------------继电器操作--------------------
 
-// function doSendOpen(io) {
-//   let params = {
-//     opr: "open",
-//     unid: equipStore.currentUnid,
-//     io: io
-//   }
+// -------------------获取用户所有设备信息------------------
+const readAllState = () => {
+  // 不需要参数
+  // let params = {
+  //   opr: "open",
+  //   unid: equipStore.currentUnid[0],
+  //   io: io,
+  // };
+  let tempAllState = damreadall();
+  tempAllState.token = adminStore.token;
+  const tempAllStateMsg = JSON.stringify(tempAllState);
+  console.log("准备完数据，开始发送");
 
-//   let tempDamopr = damopr(params)
-//   tempDamopr.token = adminStore.token;
-//   const damoprMsg = JSON.stringify(tempDamopr);
-//   // --------------可抽出来-------------
+  sendToWebsocket(tempAllStateMsg);
+};
 
-//   // console.log("damoprMsg = ", damoprMsg, "ws.readyState = ", ws.readyState);
-//   // if (typeof ws === "undefined") {
-//   //   console.log("websocket还没有连接，或者连接失败，情检测");
-//   //   return false;
-//   // }
-//   // if (ws.readyState == 3 || ws.readyState == 2 || ws.readyState == 0) {
-//   //   console.log("websocket已经关闭，或者连接失败，或者正在链接，情检测");
-//   //   return false;
-//   // }
-//   // ws.send(damoprMsg);
-
-//   sendToWebsocket(damoprMsg)
-
-// }
+// -------------------获取用户所有设备信息------------------
 
 onMounted(() => {
   startTimer();
 });
 
-// function secStart() {
-//   ws = useWebSocket(handleMessage);
+// ------------定时处理任务-----------------
 
-//   let secTimer = setTimeout(() => {
-//     console.log("还有没有ws：", ws);
-//     if (ws.readyState === 3) {
-//       sendRegister();
-//     }
-//   }, 2000);
-// }
+// ------------定时处理任务-----------------
 
+// ---------------接收到websocket传来的消息-------------------
 // 接收到消息、打印pinia、在这处理数据
 function handleMessage(e) {
   console.log("handleMessage:", e.data);
@@ -191,6 +185,55 @@ function handleMessage(e) {
     if (returnmsg.infotype === "EquipInfoNow") {
       equipStore.updateCurrentid(returnmsg.sn);
     }
+    // else if(returnmsg.infotype === "damreadall"){
+    //   // 做错误处理：1、初始化关键的信息2、获取设备个数.length>=0(等于零说明用户没设备或是删了)
+    //   console.log("获取的所有设备有几个，个数=", returnmsg.info.length)
+
+    //   // 1、初始化关键信息可以使用上一次传过来保存到pinia的信息（以备当前收到的数据有问题）
+    //   if(equipStore.allEquipState.length == 0){
+    //     // Pinia里没信息
+    //     let deflaultAllEquipInfo = {
+    //       infotype: "初始化信息类型",
+    //       info: [{
+    //         ID: "default",
+    //         Addr:"default",
+    //         SN:"default",
+    //         regdi:["default"],
+    //         regdo:["default"],
+    //         regai:["default"],
+    //         AITime:"default",
+    //         DOTime:"default",
+    //         DITime:"default",
+    //         AOTime:"default",
+    //         ip: "default",
+    //         mbInfo:"default",
+    //         teamsn:"default",
+    //         ainum: "default",
+    //         aonum:"default",
+    //         dinum:"default",
+    //         donum:"default",
+    //         aimode:"default",
+    //         IsInverse:"default",
+    //         equiptype:"default",
+    //         IsTiming:"default",
+    //         IsOnLine:"default",
+    //         SOC:"default",
+    //         IsAIValueChg:"default"
+    //       }]
+    //     }
+    //     // 是否一直没信息判断依据变量
+    //     let isUseDefault = 1
+    //     equipStore.updateAllEquipState(deflaultAllEquipInfo)
+
+    //   }
+    //   // 2、一直收到有问题的数据或者长时间收不到数据，需要报告给pinia
+    //   let getTimer = setInterval(() => {
+
+    //   }, 10);
+    //   // 3、信息有效的话，发送给pinia
+
+    // }
+
     retMsg.value = e.data;
     console.log("pinia里的webStore数据：", webStore);
     console.log("pinia里的equipStore数据：", equipStore);
@@ -198,25 +241,17 @@ function handleMessage(e) {
   } catch (err) {
     console.log("错误是：", err);
   }
+
   // 测试断开连接
   if (returnmsg.infotype === "EquipInfoNow") {
     ws.close();
   }
-  // secStart();
 }
+// ---------------接收到websocket传来的消息-------------------
 
-let timerId;
+// -------------连接websocket后首次发送注册用户信息-------------------
 const startTimer = () => {
   timerId = setTimeout(() => {
-    // if(ws.readyState==0 || ws.readyState>1){
-    //   try{
-    //     console.log("断线需要重连")
-    //     // 看看会不会影响到pinia里的数据
-    //     console.log("看看会不会影响到pinia里的数据: adminStore.token=",adminStore.token)
-    //   }catch(e){
-    //     console.log("websocket断线重连出现了问题")
-    //   }
-    // }
     sendRegister();
   }, 1000);
 };
@@ -226,22 +261,12 @@ const sendRegister = () => {
   let tempregister = register();
   tempregister.token = adminStore.token;
   const registMsg = JSON.stringify(tempregister);
-  // --------------可抽出来-------------
-
-  // console.log("registMsg = ", registMsg, "ws.readyState = ", ws.readyState);
-  // if (typeof ws === "undefined") {
-  //   console.log("websocket还没有连接，或者连接失败，情检测");
-  //   return false;
-  // }
-  // if (ws.readyState == 3 || ws.readyState == 2 || ws.readyState == 0) {
-  //   console.log("websocket已经关闭，或者连接失败，情检测");
-  //   return false;
-  // }
-  // ws.send(registMsg);
 
   sendToWebsocket(registMsg);
 };
+// -------------连接websocket后首次发送注册用户信息-------------------
 
+//--------------------所有请求的发送（判断websocket状态没问题后发送）---------------------
 // 发送websocket请求
 const sendToWebsocket = (Msg) => {
   console.log("Msg = ", Msg, "ws.readyState = ", ws.readyState);
@@ -258,40 +283,12 @@ const sendToWebsocket = (Msg) => {
   }
   ws.send(Msg);
 };
+//--------------------所有请求的发送（判断websocket状态没问题后发送）---------------------
 
 onUnmounted(() => {
   clearTimeout(timerId);
   // clearTimeout(secTimer);
 });
-
-// 判断是否连接上websocket
-// const prepare = () => {
-//   console.log("ws.readyState = ", ws.readyState);
-//   while (
-//     ws.readyState == 0 ||
-//     ws.readyState == 2 ||
-//     ws.readyState == 3 ||
-//     ws.readyState == "undefine"
-//   ) {
-//     console.log("进入循环后ws.readyState = ", ws.readyState);
-//     if (ws.readyState == 1) {
-//       break;
-//     }
-//   }
-//   let tempregister = register();
-//   tempregister.token = adminStore.token;
-//   const registMsg = JSON.stringify(tempregister);
-//   console.log("registMsg = ", registMsg, "ws.readyState = ", ws.readyState);
-//   if (typeof ws === "undefined") {
-//     console.log("websocket还没有连接，或者连接失败，情检测");
-//     return false;
-//   }
-//   if (ws.readyState == 3 || ws.readyState == 2 || ws.readyState == 0) {
-//     console.log("websocket已经关闭，或者连接失败，情检测");
-//     return false;
-//   }
-//   ws.send(registMsg);
-// };
 </script>
 
 <style>
