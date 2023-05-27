@@ -77,28 +77,37 @@ function useWebSocket(handleMessage) {
     console.log("---------------打开websocket连接了--------------");
     console.log("webSocket open", e);
     webStore.addMsg(e);
-    console.log("webSocketStore存入pinia", webStore);
+    // console.log("webSocketStore存入pinia", webStore);
   }
 
   function handleClose(e) {
     console.log("webSocket close", e);
     console.log("---------------正在关闭--------------");
     console.log("---------------正在重启--------------");
-    returnWebsocket();
+    reStartWebSocketAndInit();
   }
 
   function handleError(e) {
     console.log("webSocket error", e);
-    chongreturnWebsocketqifuwu();
+    // chongreStartWebSocketAndInitqifuwu();
   }
 
   init();
 }
 
-// 重启websocket服务
-function returnWebsocket() {
+// 重启websocket服务（需要初始化很多东西）
+function reStartWebSocketAndInit() {
   useWebSocket(handleMessage);
-  startTimer();
+  // 用户重新注册
+  startRegisterTimer();
+  // 需要定期收数据的定时器的初始化
+
+  //1、获取用户所有设备的定时任务
+  getAllEquipsCount = 0; // 收到几次
+  isAllEquipsUseDefault = 0; // 发送默认数据次数
+
+  // 定时器方法，开启定时
+  AllEquipsTimer = setInterval(storeDefaultOrLastone, 10000);
 }
 
 // ----------------------------------------------
@@ -164,14 +173,14 @@ const readAllState = () => {
 // -------------------获取用户所有设备信息------------------
 
 onMounted(() => {
-  startTimer();
+  startRegisterTimer();
 });
 
 // ------------定时处理任务-----------------
 
 // 防止过快的信息过来
 let currentProcessTime, lastProcessTime;
-let timeInterval = undefined;
+let handleMsgTimeInterval = undefined;
 
 // 处理消息迟迟不来
 
@@ -209,31 +218,34 @@ let deflaultAllEquipInfo = {
 };
 
 //1、获取用户所有设备的定时任务
-let getAllEquipsCount = 0; // 收到几次请求
+let getAllEquipsCount = 0; // 收到几次
 let isAllEquipsUseDefault = 0; // 发送默认数据次数
 
 // 定时器方法，开启定时
 let AllEquipsTimer = setInterval(storeDefaultOrLastone, 10000);
 
-// 事件
+// 处理应该定时来数据的任务
 function storeDefaultOrLastone() {
   if (getAllEquipsCount == 0) {
     // 从开始就没接收到过正常数据
     if (isAllEquipsUseDefault < 3) {
       // 第一次超时，需要发送默认数据给pinia
-      console.log("---第一次超时，getAllEquipsCount = ", getAllEquipsCount);
-      equipStore.updateAllEquipState(deflaultAllEquipInfo);
-      console.log("---第一次超时equipStore=", equipStore.allEquipStatemMsg);
+      console.log(
+        "---从连接建立，获取所有设备信息的消息一直没到，触发超时，getAllEquipsCount = ",
+        getAllEquipsCount
+      );
+      equipStore.updateAllEquipState(deflaultAllEquipInfo); // 多更新了两次
+      console.log("---超时后的equipStore=", equipStore.allEquipStatemMsg);
       isAllEquipsUseDefault++;
     } else {
       // 没正常应答且3次超时，销毁定时器,不再定时
-      console.log("---4次超时了，getAllEquipsCount = ", getAllEquipsCount);
+      console.log("---第四次超时，getAllEquipsCount = ", getAllEquipsCount);
       equipStore.updateAllEquipStatemMsg(
-        "从开始就未收到消息，连续四次超时了，数据不再变化"
+        "从开始就未收到消息，这是第四次超时了，数据不再变化"
       );
       console.log("---4次超时equipStore=", equipStore.allEquipStatemMsg);
-      console.log("消除定时了-------------------");
       clearInterval(AllEquipsTimer);
+      console.log("消除定时了-------------------");
     }
   } else {
     // 有正常数据后又出现了收不到的情况
@@ -242,44 +254,25 @@ function storeDefaultOrLastone() {
       isAllEquipsUseDefault++;
 
       console.log(
-        "---不是第一次有效请求，超时一次equipStore=",
+        "---以前有有效数据，现在超时了，超时一次后的 equipStore=",
         equipStore.allEquipStatemMsg,
-        "，isAllEquipsUseDefault = ",
+        "，isAllEquipsUseDefault（是否使用默认数据（以前的有效数据）） = ",
         isAllEquipsUseDefault
       );
     } else {
       //发送默认数据超过三次(store里存在上次的正常数据)，终止计时器
       equipStore.updateAllEquipStatemMsg(
-        "发送默认数据（以前的数据）超过四次，设备状态有问题"
+        "发送过默认数据（以前的有效数据），现在是第四次超时了，设备状态有问题"
       );
       console.log(
-        "---不是第一次有效请求，超时四次，equipStore=",
+        "---发送默认数据（以前的有效数据），这是第四次超时了，equipStore=",
         equipStore.allEquipStatemMsg
       );
-      console.log("消除定时了-------------------");
       clearInterval(AllEquipsTimer);
+      console.log("消除定时了-------------------");
     }
   }
 }
-
-// 重启定时器方法
-function resetTimer() {
-  // 如果收到请求的值变化，则清除计时器，并重启计时器
-  console.log("重启定时了-------------------");
-  clearInterval(AllEquipsTimer);
-  AllEquipsTimer = setInterval(storeDefaultOrLastone, 10000);
-}
-
-// // 监听getAllEquipsCount（收到请求的数据变化）
-// watch([getAllEquipsCount], (newval, preval) => {
-//   console.log(
-//     "监听getAllEquipsCount访问次数的变化  newval = ",
-//     newval,
-//     "  preval",
-//     preval
-//   );
-//   resetTimer();
-// });
 
 // ------------定时处理任务-----------------
 
@@ -288,29 +281,28 @@ function resetTimer() {
 function handleMessage(e) {
   currentProcessTime = Date.now();
 
-  if (timeInterval == undefined) {
-    // timeInterval初始化为currentProcessTime，处理第一次的结果
-    timeInterval = currentProcessTime;
+  if (handleMsgTimeInterval == undefined) {
+    // handleMsgTimeInterval初始化为currentProcessTime，处理第一次的结果
+    handleMsgTimeInterval = currentProcessTime;
   } else {
-    timeInterval = currentProcessTime - lastProcessTime;
+    handleMsgTimeInterval = currentProcessTime - lastProcessTime;
   }
 
   console.log(
-    "两次消息接收的间隔timeInterval =",
-    timeInterval,
+    "两次消息接收的间隔handleMsgTimeInterval =",
+    handleMsgTimeInterval,
     "  currentProcessTime",
     currentProcessTime,
     "  lastProcessTime",
     lastProcessTime
   );
 
-  if (timeInterval > 3000) {
+  if (handleMsgTimeInterval > 3000) {
     // 限制一秒处理一次
-    console.log("handleMessage:", e.data);
+    console.log("handleMessage(接收的消息):", e.data);
     let returnmsg = JSON.parse(e.data);
 
-    console.log("e.data.infotype：", returnmsg.infotype);
-    console.log("JSON.parse( e.data ):", returnmsg);
+    console.log("消息类型infotype：", returnmsg.infotype);
 
     try {
       // 将当前设备存到pinia
@@ -330,59 +322,10 @@ function handleMessage(e) {
           equipStore.updateAllEquipStatemMsg("触发了响应，正常");
         }
 
-        isAllEquipsUseDefault = 0; // 开始发送了，因此置为0
+        isAllEquipsUseDefault = 0; // 开始发送了，因此置为0，代表不需要发送默认数据
 
         resetTimer();
       }
-      // else if(returnmsg.infotype === "damreadall"){
-      //   // 做错误处理：1、初始化关键的信息2、获取设备个数.length>=0(等于零说明用户没设备或是删了)
-      //   console.log("获取的所有设备有几个，个数=", returnmsg.info.length)
-
-      //   // 1、初始化关键信息可以使用上一次传过来保存到pinia的信息（以备当前收到的数据有问题）
-      //   if(equipStore.allEquipState.length == 0){
-      //     // Pinia里没信息
-      //     let deflaultAllEquipInfo = {
-      //       infotype: "初始化信息类型",
-      //       info: [{
-      //         ID: "default",
-      //         Addr:"default",
-      //         SN:"default",
-      //         regdi:["default"],
-      //         regdo:["default"],
-      //         regai:["default"],
-      //         AITime:"default",
-      //         DOTime:"default",
-      //         DITime:"default",
-      //         AOTime:"default",
-      //         ip: "default",
-      //         mbInfo:"default",
-      //         teamsn:"default",
-      //         ainum: "default",
-      //         aonum:"default",
-      //         dinum:"default",
-      //         donum:"default",
-      //         aimode:"default",
-      //         IsInverse:"default",
-      //         equiptype:"default",
-      //         IsTiming:"default",
-      //         IsOnLine:"default",
-      //         SOC:"default",
-      //         IsAIValueChg:"default"
-      //       }]
-      //     }
-      //     // 是否一直没信息判断依据变量
-      //     let isUseDefault = 1
-      //     equipStore.updateAllEquipState(deflaultAllEquipInfo)
-
-      //   }
-      //   // 2、一直收到有问题的数据或者长时间收不到数据，需要报告给pinia
-      //   let getTimer = setInterval(() => {
-
-      //   }, 10);
-      //   // 3、信息有效的话，发送给pinia
-
-      // }
-
       retMsg.value = e.data;
       console.log("pinia里的webStore数据：", webStore);
       console.log("pinia里的equipStore数据：", equipStore);
@@ -399,10 +342,19 @@ function handleMessage(e) {
 
   lastProcessTime = currentProcessTime;
 }
+
+// 重启定时器方法
+function resetTimer() {
+  // 如果收到请求的值变化，则清除计时器，并重启计时器
+  console.log("重启定时了-------------------");
+  clearInterval(AllEquipsTimer);
+  AllEquipsTimer = setInterval(storeDefaultOrLastone, 10000);
+}
+
 // ---------------接收到websocket传来的消息-------------------
 
 // -------------连接websocket后首次发送注册用户信息-------------------
-const startTimer = () => {
+const startRegisterTimer = () => {
   timerId = setTimeout(() => {
     sendRegister();
   }, 1000);
@@ -421,7 +373,7 @@ const sendRegister = () => {
 //--------------------所有请求的发送（判断websocket状态没问题后发送）---------------------
 // 发送websocket请求
 const sendToWebsocket = (Msg) => {
-  console.log("Msg = ", Msg, "ws.readyState = ", ws.readyState);
+  console.log("Msg（发送的消息） = ", Msg, "ws.readyState = ", ws.readyState);
   if (typeof ws === "undefined") {
     console.log("websocket还没有连接，或者连接失败，情检测");
     return false;
