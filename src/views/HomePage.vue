@@ -51,66 +51,86 @@ const equipStore = EquipStore();
 
 const webStore = webSocketStore();
 // let ws = useWebSocket(handleMessage);
-let ws; // websocket实例
 let timerId; // 定时器
 
 let retMsg = ref({});
 
 // --------------- websocket服务-------------------
-useWebSocket(handleMessage);
+// import { handleMessage } from "../hooks/handleMsg";
 
-function useWebSocket(handleMessage) {
-  ws = new WebSocket(ws_ADDRESS);
+// useWebSocket(handleMessage);
 
-  const init = () => {
-    bindEvent();
-  };
+// function useWebSocket(handleMessage) {
+//   ws = new WebSocket(ws_ADDRESS);
 
-  function bindEvent() {
-    ws.addEventListener("open", handleOpen, false);
-    ws.addEventListener("close", handleClose, false);
-    ws.addEventListener("error", handleError, false);
-    ws.addEventListener("message", handleMessage, false);
+//   const init = () => {
+//     bindEvent();
+//   };
+
+//   function bindEvent() {
+//     ws.addEventListener("open", handleOpen, false);
+//     ws.addEventListener("close", handleClose, false);
+//     ws.addEventListener("error", handleError, false);
+//     ws.addEventListener("message", handleMessage, false);
+//   }
+
+//   function handleOpen(e) {
+//     console.log("---------------打开websocket连接了--------------");
+//     console.log("webSocket open", e);
+//     webStore.addMsg(e);
+//     // console.log("webSocketStore存入pinia", webStore);
+//   }
+
+//   function handleClose(e) {
+//     console.log("webSocket close", e);
+//     console.log("---------------正在关闭--------------");
+//     console.log("---------------正在重启--------------");
+//     reStartWebSocketAndInit();
+//   }
+
+//   function handleError(e) {
+//     console.log("webSocket error", e);
+//     // chongreStartWebSocketAndInitqifuwu();
+//   }
+
+//   init();
+// }
+
+// // 重启websocket服务（需要初始化很多东西）
+// function reStartWebSocketAndInit() {
+//   useWebSocket(handleMessage);
+//   // 用户重新注册
+//   startRegisterTimer();
+//   // 需要定期收数据的定时器的初始化
+
+//   //1、获取用户所有设备的定时任务
+//   getAllEquipsCount = 0; // 收到几次
+//   isAllEquipsUseDefault = 0; // 发送默认数据次数
+
+//   // 定时器方法，开启定时
+//   AllEquipsTimer = setInterval(storeDefaultOrLastone, 10000);
+// }
+let ws = null; // websocket实例
+
+import Ws from "../hooks/Ws.js";
+
+// 使用handleMessage处理消息
+import { handleMessage } from "../hooks/handleMsg.js";
+
+function wsConnect() {
+  // ws = Ws.create(ws_ADDRESS, wsReConnect, handleMessage);
+  ws = Ws.create(ws_ADDRESS, wsReConnect);
+}
+wsConnect();
+
+function wsReConnect() {
+  console.log("ws的状态：readystate = ", ws.readyState);
+  if (ws.readyState == 0 || ws.readyState == 2 || ws.readyState == 3) {
+    return wsConnect();
   }
-
-  function handleOpen(e) {
-    console.log("---------------打开websocket连接了--------------");
-    console.log("webSocket open", e);
-    webStore.addMsg(e);
-    // console.log("webSocketStore存入pinia", webStore);
-  }
-
-  function handleClose(e) {
-    console.log("webSocket close", e);
-    console.log("---------------正在关闭--------------");
-    console.log("---------------正在重启--------------");
-    reStartWebSocketAndInit();
-  }
-
-  function handleError(e) {
-    console.log("webSocket error", e);
-    // chongreStartWebSocketAndInitqifuwu();
-  }
-
-  init();
 }
 
-// 重启websocket服务（需要初始化很多东西）
-function reStartWebSocketAndInit() {
-  useWebSocket(handleMessage);
-  // 用户重新注册
-  startRegisterTimer();
-  // 需要定期收数据的定时器的初始化
-
-  //1、获取用户所有设备的定时任务
-  getAllEquipsCount = 0; // 收到几次
-  isAllEquipsUseDefault = 0; // 发送默认数据次数
-
-  // 定时器方法，开启定时
-  AllEquipsTimer = setInterval(storeDefaultOrLastone, 10000);
-}
-
-// ----------------------------------------------
+// ---------------------websocket服务-------------------------
 
 //菜单
 let openmenus = [
@@ -277,79 +297,79 @@ function storeDefaultOrLastone() {
 // ------------定时处理任务-----------------
 
 // ---------------接收到websocket传来的消息-------------------
-// 接收到消息、打印pinia、在这处理数据
-function handleMessage(e) {
-  currentProcessTime = Date.now();
+// // 接收到消息、打印pinia、在这处理数据
+// function handleMessage(e) {
+//   currentProcessTime = Date.now();
 
-  if (handleMsgTimeInterval == undefined) {
-    // handleMsgTimeInterval初始化为currentProcessTime，处理第一次的结果
-    handleMsgTimeInterval = currentProcessTime;
-  } else {
-    handleMsgTimeInterval = currentProcessTime - lastProcessTime;
-  }
+//   if (handleMsgTimeInterval == undefined) {
+//     // handleMsgTimeInterval初始化为currentProcessTime，处理第一次的结果
+//     handleMsgTimeInterval = currentProcessTime;
+//   } else {
+//     handleMsgTimeInterval = currentProcessTime - lastProcessTime;
+//   }
 
-  console.log(
-    "两次消息接收的间隔handleMsgTimeInterval =",
-    handleMsgTimeInterval,
-    "  currentProcessTime",
-    currentProcessTime,
-    "  lastProcessTime",
-    lastProcessTime
-  );
+//   console.log(
+//     "两次消息接收的间隔handleMsgTimeInterval =",
+//     handleMsgTimeInterval,
+//     "  currentProcessTime",
+//     currentProcessTime,
+//     "  lastProcessTime",
+//     lastProcessTime
+//   );
 
-  if (handleMsgTimeInterval > 3000) {
-    // 限制一秒处理一次
-    console.log("handleMessage(接收的消息):", e.data);
-    let returnmsg = JSON.parse(e.data);
+//   if (handleMsgTimeInterval > 3000) {
+//     // 限制一秒处理一次
+//     console.log("handleMessage(接收的消息):", e.data);
+//     let returnmsg = JSON.parse(e.data);
 
-    console.log("消息类型infotype：", returnmsg.infotype);
+//     console.log("消息类型infotype：", returnmsg.infotype);
 
-    try {
-      // 将当前设备存到pinia
-      if (returnmsg.infotype === "EquipInfoNow") {
-        equipStore.updateCurrentid(returnmsg.sn);
-      } else if (returnmsg.infotype === "damreadall") {
-        // 先做错误判断，后存store
-        // 一会写...
-        equipStore.updateAllEquipState(returnmsg);
-        console.log("收到获取用户所有设备的响应");
-        getAllEquipsCount++; //获取到数据的次数
+//     try {
+//       // 将当前设备存到pinia
+//       if (returnmsg.infotype === "EquipInfoNow") {
+//         equipStore.updateCurrentid(returnmsg.sn);
+//       } else if (returnmsg.infotype === "damreadall") {
+//         // 先做错误判断，后存store
+//         // 一会写...
+//         equipStore.updateAllEquipState(returnmsg);
+//         console.log("收到获取用户所有设备的响应");
+//         getAllEquipsCount++; //获取到数据的次数
 
-        //更新msg状态，方便调试
-        // isAllEquipsUseDefault代表存pinia数据是不是过期的，isAllEquipsUseDefault=0说明间隔器到期前存的是新数据！！！
-        if (isAllEquipsUseDefault > 0) {
-          // 说明pinia存的过期数据，此时触发了响应，所以msg要更新成正常
-          equipStore.updateAllEquipStatemMsg("触发了响应，正常");
-        }
+//         //更新msg状态，方便调试
+//         // isAllEquipsUseDefault代表存pinia数据是不是过期的，isAllEquipsUseDefault=0说明间隔器到期前存的是新数据！！！
+//         if (isAllEquipsUseDefault > 0) {
+//           // 说明pinia存的过期数据，此时触发了响应，所以msg要更新成正常
+//           equipStore.updateAllEquipStatemMsg("触发了响应，正常");
+//         }
 
-        isAllEquipsUseDefault = 0; // 开始发送了，因此置为0，代表不需要发送默认数据
+//         isAllEquipsUseDefault = 0; // 开始发送了，因此置为0，代表不需要发送默认数据
 
-        resetTimer();
-      }
-      retMsg.value = e.data;
-      console.log("pinia里的webStore数据：", webStore);
-      console.log("pinia里的equipStore数据：", equipStore);
-      console.log("pinia里的adminStore数据：", adminStore);
-    } catch (err) {
-      console.log("错误是：", err);
-    }
+//         resetTimer();
+//       }
+//       retMsg.value = e.data;
+//       console.log("pinia里的webStore数据：", webStore);
+//       console.log("pinia里的equipStore数据：", equipStore);
+//       console.log("pinia里的adminStore数据：", adminStore);
+//     } catch (err) {
+//       console.log("错误是：", err);
+//     }
 
-    // // 测试断开连接
-    // if (returnmsg.infotype === "EquipInfoNow") {
-    //   ws.close();
-    // }
-  }
+//     // // 测试断开连接
+//     // if (returnmsg.infotype === "EquipInfoNow") {
+//     //   ws.close();
+//     // }
+//   }
 
-  lastProcessTime = currentProcessTime;
-}
+//   lastProcessTime = currentProcessTime;
+// }
 
-// 重启定时器方法
-function resetTimer() {
-  // 如果收到请求的值变化，则清除计时器，并重启计时器
-  console.log("重启定时了-------------------");
-  clearInterval(AllEquipsTimer);
-  AllEquipsTimer = setInterval(storeDefaultOrLastone, 10000);
-}
+// // 重启定时器方法
+// function resetTimer() {
+//   // 如果收到请求的值变化，则清除计时器，并重启计时器
+//   console.log("重启定时了-------------------");
+//   clearInterval(AllEquipsTimer);
+//   AllEquipsTimer = setInterval(storeDefaultOrLastone, 10000);
+// }
 
 // ---------------接收到websocket传来的消息-------------------
 
