@@ -110,16 +110,79 @@ let retMsg = ref({});
 //   // 定时器方法，开启定时
 //   AllEquipsTimer = setInterval(storeDefaultOrLastone, 10000);
 // }
+
+// -------------连接websocket后首次发送注册用户信息-------------------
+const startRegisterTimer = () => {
+  timerId = setTimeout(() => {
+    console.log("要sendRegister了");
+    sendRegister();
+  }, 1000);
+};
+
+// 注册websocket用户（登录后立即执行）
+const sendRegister = () => {
+  console.log("进入sendRegister了");
+  let tempregister = register();
+  tempregister.token = adminStore.token;
+  const registMsg = JSON.stringify(tempregister);
+
+  sendToWebsocket(registMsg);
+};
+// -------------连接websocket后首次发送注册用户信息-------------------
+
+// ----------------websocket服务-------------------------
 let ws = null; // websocket实例
 
 import Ws from "../hooks/Ws.js";
+import module from "../opr/handleRegist.js";
 
 // 使用handleMessage处理消息
-import { handleMessage } from "../hooks/handleMsg.js";
+// import { handleMessage } from "../hooks/handleMsg.js";
+// handleMessage();
 
 function wsConnect() {
   // ws = Ws.create(ws_ADDRESS, wsReConnect, handleMessage);
   ws = Ws.create(ws_ADDRESS, wsReConnect);
+  clearTimeout(timerId);
+  console.log("往下走了吗？");
+
+  ws.onmessage = function (e) {
+    console.log("e = ", e);
+    // const { data } = e;
+
+    console.log(" AdminStore = ", adminStore);
+    // console.log("收消息的js，进来没？");
+    console.log("infotype = ", JSON.parse(e.data));
+    let ret = JSON.parse(e.data);
+
+    if (ret.info === "No Authority") {
+      // 当连接出现问题时，重新建立连接
+      console.log("设备出了故障，或者为授权");
+    }
+
+    switch (ret.infotype) {
+      case "register":
+        let a = 6;
+        console.log("注册信息：", ret);
+        const regis = module({ ret, a });
+        const { handleRegist } = regis;
+        handleRegist();
+        break;
+      case "EquipInfoNow":
+        console.log("当前设备信息：", ret);
+        // 测试断开连接后重连
+        this.close();
+        break;
+      case "untoken":
+        console.log("ret.infotype是untoken, 操作失败，重新登录");
+        router.push("/login");
+      default:
+        console.log("当前的消息是：", ret);
+        break;
+    }
+  };
+
+  startRegisterTimer();
 }
 wsConnect();
 
@@ -129,6 +192,28 @@ function wsReConnect() {
     return wsConnect();
   }
 }
+
+// ws.onmessage = function (e) {
+//   console.log("e = ", e);
+//   // const { data } = e;
+
+//   console.log("收消息的js，进来没？");
+//   console.log("infotype = ", JSON.parse(e.data));
+//   let ret = JSON.parse(e.data);
+
+//   switch (ret.infotype) {
+//     case "register":
+//       console.log("注册信息：", ret);
+//       break;
+//     case "EquipInfoNow":
+//       console.log("当前设备信息：", ret);
+//       // 测试断开连接后重连
+//       this.close();
+//       break;
+//     default:
+//       break;
+//   }
+// };
 
 // ---------------------websocket服务-------------------------
 
@@ -144,6 +229,8 @@ let closemenus = [
 
 // -------------------继电器操作--------------------
 //开启继电器请求
+// import OprModule from '../opr/handleOpr'
+
 const openOpr = (io) => {
   let params = {
     opr: "open",
@@ -192,9 +279,9 @@ const readAllState = () => {
 
 // -------------------获取用户所有设备信息------------------
 
-onMounted(() => {
-  startRegisterTimer();
-});
+// onMounted(() => {
+//   startRegisterTimer();
+// });
 
 // ------------定时处理任务-----------------
 
@@ -373,23 +460,6 @@ function storeDefaultOrLastone() {
 
 // ---------------接收到websocket传来的消息-------------------
 
-// -------------连接websocket后首次发送注册用户信息-------------------
-const startRegisterTimer = () => {
-  timerId = setTimeout(() => {
-    sendRegister();
-  }, 1000);
-};
-
-// 注册websocket用户（登录后立即执行）
-const sendRegister = () => {
-  let tempregister = register();
-  tempregister.token = adminStore.token;
-  const registMsg = JSON.stringify(tempregister);
-
-  sendToWebsocket(registMsg);
-};
-// -------------连接websocket后首次发送注册用户信息-------------------
-
 //--------------------所有请求的发送（判断websocket状态没问题后发送）---------------------
 // 发送websocket请求
 const sendToWebsocket = (Msg) => {
@@ -405,6 +475,7 @@ const sendToWebsocket = (Msg) => {
     );
     return false;
   }
+  console.log("马上要发消息了，当前的ws是：", ws);
   ws.send(Msg);
 };
 //--------------------所有请求的发送（判断websocket状态没问题后发送）---------------------
@@ -413,7 +484,7 @@ onUnmounted(() => {
   clearInterval(timerId);
   // clearInterval(secTimer);
   clearInterval(AllEquipsTimer);
-  clearInterval(frequecyTimer);
+  // clearInterval(frequecyTimer);
 });
 </script>
 

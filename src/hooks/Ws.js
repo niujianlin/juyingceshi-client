@@ -8,6 +8,7 @@ const WS_MODE = {
 
 class Ws extends WebSocket {
     constructor (url, wsReConnect) {
+    // constructor (url, wsReConnect, handleMessage) {
         super(url)
         // this.connectedStatus = false
         this.wsUrl = url
@@ -45,24 +46,24 @@ class Ws extends WebSocket {
 
     }
 
-    handleMessage(data) {
-        const {infotype} = this.receiveMsg(data)
+    // handleMessage(data) {
+    //     const {infotype} = this.receiveMsg(data)
 
 
-        switch(infotype) {
-            case WS_MODE.REGISTER:
-                console.log("注册信息：", data)
-                break
-            case WS_MODE.EQUIPINFONOW:
-                console.log("当前设备信息：",data)
-                // 测试断开连接后重连
-                this.close()
-                break
-            default:
-                break
-        }
+    //     switch(infotype) {
+    //         case WS_MODE.REGISTER:
+    //             console.log("注册信息：", data)
+    //             break
+    //         case WS_MODE.EQUIPINFONOW:
+    //             console.log("当前设备信息：",data)
+    //             // 测试断开连接后重连
+    //             this.close()
+    //             break
+    //         default:
+    //             break
+    //     }
         
-    }
+    // }
 
     reconnect() {
         this.wsReConnect()
@@ -77,7 +78,9 @@ class Ws extends WebSocket {
         return this.send(JSON.stringify(data))
     }
 
+    // static create(url, wsReConnect,handleMessage) {
     static create(url, wsReConnect) {
+        // return new Ws(url, wsReConnect, handleMessage)
         return new Ws(url, wsReConnect)
     }
 
