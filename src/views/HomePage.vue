@@ -131,6 +131,9 @@ const sendRegister = () => {
 // -------------连接websocket后首次发送注册用户信息-------------------
 
 // ----------------websocket服务-------------------------
+
+// 这里要
+
 let ws = null; // websocket实例
 
 import Ws from "../hooks/Ws.js";

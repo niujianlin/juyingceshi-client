@@ -1,6 +1,6 @@
 <template>
   <div class="login-panel">
-    <n-card title="聚英云平台登录">
+    <n-card title="云平台登录">
       <n-form :rules="rules" :model="admin">
         <n-form-item path="userName" label="账号">
           <n-input v-model:value="admin.userName" placeholder="请输入账号" />
